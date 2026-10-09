@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Reel Studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="/static/styles.css" />
+<script>
+  // set the theme before first paint so there is no flash
+  try {
+    var t = localStorage.getItem("rs-theme");
+    if (!t) t = matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+    document.documentElement.setAttribute("data-theme", t);
+  } catch (e) {}
+</script>
+</head>
+<body>
+
+<div class="app">
+
+  <aside class="rail-nav">
+    <div class="brand">
+      <span class="mark"></span>
+      <span>
+        <span class="brand-txt">Reel Studio</span><br />
+        <span class="brand-sub">Instagram extractor</span>
+      </span>
+    </div>
+
+    <nav class="seg" id="tabs">
+      <button data-tab="reels" class="active"><span class="ic"></span> Reels <span class="k">1</span></button>
+      <button data-tab="profiles"><span class="ic"></span> Profiles <span class="k">2</span></button>
+      <button data-tab="data"><span class="ic"></span> Data <span class="k">3</span></button>
+      <button data-tab="settings"><span class="ic"></span> Settings <span class="k">4</span></button>
+    </nav>
+
+    <div class="rail-foot">
+      <span class="chip" id="session-chip" title="Instagram session status">
+        <span class="dot"></span><span id="session-text">checking</span>
+      </span>
+      <button class="theme-btn" id="theme-toggle" title="Switch theme">
+        <span id="theme-label">Dark</span><span class="sw"></span>
+      </button>
+    </div>
+  </aside>
+
+  <main>
+
+    <!-- ============================= REELS ============================= -->
+    <section class="page active" id="page-reels">
+      <div class="page-head">
+        <h1>Reel extraction</h1>
+        <p>Paste reel links or shortcodes. Each one returns its public metrics and the audio it
+           used, then the owner's follower count is fetched once per account.</p>
+      </div>
+
+      <div class="grid-2">
+        <div>
+          <div class="card">
+            <div class="card-head">
+              <h2>Source list</h2>
+              <span class="small" id="reel-count">0 items</span>
+            </div>
+            <label class="field">
+              <textarea id="reel-urls" spellcheck="false"
+                placeholder="https://www.instagram.com/reels/Dd6Pu8KpFJc/
+https://www.instagram.com/reel/DeMW459gbXu/
+DanDFR7plbh"></textarea>
+            </label>
+            <div class="row">
+              <button class="btn btn-sm" id="reel-file">Load file</button>
+              <button class="btn btn-sm" id="reel-sample">Sample</button>
+              <button class="btn btn-sm" id="reel-clear">Clear</button>
+              <input type="file" id="reel-file-input" accept=".txt,.csv" hidden />
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-head"><h2>Controls</h2></div>
+            <div class="row">
+              <label class="field"><span>Engine</span>
+                <select id="s-mode">
+                  <option value="fast">Fast, parallel</option>
+                  <option value="safe">Safe, one at a time</option>
+                </select></label>
+              <label class="field"><span>Workers</span>
+                <input type="number" id="s-workers" min="1" max="12" step="1" value="6" /></label>
+            </div>
+            <div class="row">
+              <label class="field"><span>Retries</span>
+                <input type="number" id="s-retries" min="0" max="5" step="1" value="1" /></label>
+              <label class="field"><span>Timeout s</span>
+                <input type="number" id="s-timeout" min="10" max="300" step="5" value="60" /></label>
+              <label class="field"><span>Gap ms (safe)</span>
+                <input type="number" id="s-delay" min="0" max="30000" step="100" value="1000" /></label>
+            </div>
+            <div class="check" style="margin-bottom:14px">
+              <input type="checkbox" id="s-enrich" checked />
+              <label for="s-enrich">Enrich with owner profile, one call per account</label>
+            </div>
+            <button class="btn btn-sm" id="save-defaults">Save as defaults</button>
+          </div>
+        </div>
+
+        <div>
+          <div class="card">
+            <div class="card-head"><h2>Run</h2></div>
+            <div class="readout">
+              <div class="big"><span id="reel-done">0</span><small> / <span id="reel-total">0</span></small></div>
+              <span class="pill" id="reel-status">idle</span>
+            </div>
+            <div class="stats">
+              <div class="stat"><b id="reel-ok">0</b><span>OK</span></div>
+              <div class="stat"><b id="reel-fail">0</b><span>Failed</span></div>
+              <div class="stat"><b id="reel-eta">-</b><span>ETA</span></div>
+            </div>
+            <div class="meter" style="margin-top:16px"><i id="reel-meter"></i></div>
+            <div class="statusline"><span class="cur" id="reel-current">idle</span></div>
+            <div class="row">
+              <button class="btn btn-primary" id="reel-start">Start scrape</button>
+              <button class="btn btn-danger" id="reel-stop" disabled>Stop</button>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-head">
+              <h2>Log</h2>
+              <button class="btn btn-sm" id="reel-log-open">Open in Data</button>
+            </div>
+            <div class="console" id="reel-log"><div class="l info"><span class="t">--:--</span> waiting</div></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================= PROFILES ============================= -->
+    <section class="page" id="page-profiles">
+      <div class="page-head">
+        <h1>Profile extraction</h1>
+        <p>Paste profile links or handles. Each returns followers, following, post count and bio.</p>
+      </div>
+
+      <div class="grid-2">
+        <div>
+          <div class="card">
+            <div class="card-head">
+              <h2>Source list</h2>
+              <span class="small" id="prof-count">0 items</span>
+            </div>
+            <label class="field">
+              <textarea id="prof-urls" spellcheck="false"
+                placeholder="https://www.instagram.com/nasa/
+@thestockmarketnow
+growth_by_cc"></textarea>
+            </label>
+            <div class="row">
+              <button class="btn btn-sm" id="prof-file">Load file</button>
+              <button class="btn btn-sm" id="prof-clear">Clear</button>
+              <input type="file" id="prof-file-input" accept=".txt,.csv" hidden />
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-head"><h2>Controls</h2></div>
+            <div class="row">
+              <label class="field"><span>Engine</span>
+                <select id="p-mode">
+                  <option value="fast">Fast, parallel</option>
+                  <option value="safe">Safe, one at a time</option>
+                </select></label>
+              <label class="field"><span>Workers</span>
+                <input type="number" id="p-workers" min="1" max="12" step="1" value="6" /></label>
+            </div>
+            <div class="row">
+              <label class="field"><span>Retries</span>
+                <input type="number" id="p-retries" min="0" max="5" step="1" value="1" /></label>
+              <label class="field"><span>Timeout s</span>
+                <input type="number" id="p-timeout" min="10" max="300" step="5" value="60" /></label>
+              <label class="field"><span>Gap ms (safe)</span>
+                <input type="number" id="p-delay" min="0" max="30000" step="100" value="1000" /></label>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <div class="card">
+            <div class="card-head"><h2>Run</h2></div>
+            <div class="readout">
+              <div class="big"><span id="prof-done">0</span><small> / <span id="prof-total">0</span></small></div>
+              <span class="pill" id="prof-status">idle</span>
+            </div>
+            <div class="stats">
+              <div class="stat"><b id="prof-ok">0</b><span>OK</span></div>
+              <div class="stat"><b id="prof-fail">0</b><span>Failed</span></div>
+              <div class="stat"><b id="prof-eta">-</b><span>ETA</span></div>
+            </div>
+            <div class="meter" style="margin-top:16px"><i id="prof-meter"></i></div>
+            <div class="statusline"><span class="cur" id="prof-current">idle</span></div>
+            <div class="row">
+              <button class="btn btn-primary" id="prof-start">Start scrape</button>
+              <button class="btn btn-danger" id="prof-stop" disabled>Stop</button>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-head">
+              <h2>Log</h2>
+              <button class="btn btn-sm" id="prof-log-open">Open in Data</button>
+            </div>
+            <div class="console" id="prof-log"><div class="l info"><span class="t">--:--</span> waiting</div></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================= DATA ============================= -->
+    <section class="page" id="page-data">
+      <div class="page-head">
+        <h1>Data</h1>
+        <p>Every row of the selected run. Sort a column by clicking its header, filter across all
+           fields, choose which columns to show, then export.</p>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <h2>Rows</h2>
+          <span class="small" id="data-count">0 rows</span>
+        </div>
+        <div class="toolbar">
+          <select id="job-select"></select>
+          <input type="text" id="search" placeholder="Filter rows" />
+          <button class="btn btn-sm" id="toggle-cols">Columns</button>
+          <span class="gap"></span>
+          <button class="btn btn-sm" id="exp-csv">CSV</button>
+          <button class="btn btn-sm" id="exp-xlsx">XLSX</button>
+          <button class="btn btn-sm" id="exp-json">JSON</button>
+        </div>
+        <div class="cols-pop" id="cols-pop" hidden></div>
+        <div class="tablewrap">
+          <table id="data-table">
+            <thead><tr></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <div class="empty" id="data-empty">
+          <span class="big-mark">[]</span>
+          No rows yet. Run a scrape, or pick a run from the dropdown.
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================= SETTINGS ============================= -->
+    <section class="page" id="page-settings">
+      <div class="page-head">
+        <h1>Settings</h1>
+        <p>The scraper runs on the Instagram session held by api-anything on this machine.
+           If calls start failing with an auth error, refresh the session here.</p>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <h2>Session</h2>
+          <span class="chip" id="sess-chip"><span class="dot"></span><span id="sess-text">checking</span></span>
+        </div>
+        <p class="hint">Refresh opens a Chrome window. Sign in, then close it and the session is
+           saved for these runs.</p>
+        <div class="row">
+          <button class="btn btn-accent" id="refresh-session">Refresh session</button>
+          <button class="btn" id="recheck-session">Re-check</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h2>Engine</h2></div>
+        <p class="hint">Fast reads the pages directly from this machine with the session cookies, in
+           parallel, and is roughly 4 to 8 times quicker. Safe goes through the api-anything CLI one
+           request at a time, which is slower but repairs itself when Instagram changes shape.</p>
+        <div class="row">
+          <label class="field"><span>Mode</span>
+            <select id="d-mode">
+              <option value="fast">Fast, parallel</option>
+              <option value="safe">Safe, api-anything CLI</option>
+            </select></label>
+          <label class="field"><span>Workers</span>
+            <input type="number" id="d-workers" min="1" max="12" step="1" /></label>
+        </div>
+        <div class="row">
+          <label class="field"><span>Gap ms (safe mode)</span>
+            <input type="number" id="d-delay" min="0" max="30000" step="100" /></label>
+          <label class="field"><span>Retries</span>
+            <input type="number" id="d-retries" min="0" max="5" step="1" /></label>
+          <label class="field"><span>Timeout s</span>
+            <input type="number" id="d-timeout" min="10" max="300" step="5" /></label>
+        </div>
+        <div class="check" style="margin-bottom:14px">
+          <input type="checkbox" id="d-enrich" />
+          <label for="d-enrich">Enrich reels with owner profile</label>
+        </div>
+        <div class="row">
+          <button class="btn btn-primary" id="d-save">Save defaults</button>
+          <button class="btn" id="d-reset">Reset</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <h2>Run history</h2>
+          <button class="btn btn-sm" id="hist-refresh">Refresh</button>
+        </div>
+        <div id="history" class="small">loading</div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h2>About</h2></div>
+        <p class="hint">
+          Reel data is read from the reel page's embedded JSON, so it includes likes, comments,
+          reposts and the music title and artist. Follower counts are exact below 10k and
+          abbreviated above it, for example 214K. Safe mode drives the api-anything operations
+          <span class="mono">instagram getReel</span> and <span class="mono">instagram getProfile</span>.
+        </p>
+      </div>
+    </section>
+  </main>
+</div>
+
+<div class="toast" id="toast"></div>
+<script src="/static/app.js"></script>
+</body>
+</html>

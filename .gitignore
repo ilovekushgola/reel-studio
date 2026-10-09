@@ -1,0 +1,17 @@
+# runtime state, never commit
+__pycache__/
+*.py[cod]
+jobs/
+exports/
+settings.json
+
+# the API session lives in ~/.api-anything, but never let one in here
+*.session
+sessions/
+cookies*.txt
+
+# editors / OS
+.vscode/
+.idea/
+Thumbs.db
+desktop.ini
